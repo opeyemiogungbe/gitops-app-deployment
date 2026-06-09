@@ -23,7 +23,7 @@ jobs:
       - name: Set up Kubectl
         uses: azure/setup-kubectl@v1
         
-        name: Setup kustomize
+      - name: Setup kustomize
         uses: imranismail/setup-kustomize@v1
 
       - name: Configure kubectl
