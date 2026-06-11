@@ -208,6 +208,35 @@ kubectl get pods -l env=staging
 
 ---
 
+## 🚀 GitHub Actions integration
+This repository includes a GitHub Actions workflow at `.github/workflows/main.yaml`.
+
+### Workflow trigger
+- Runs on `push` to the `main` branch.
+
+### What the workflow does
+1. `actions/checkout@v4` checks out the repository.
+2. `actions/cache@v4` caches Docker build layers in `/tmp/.buildx-cache`.
+3. `aws-actions/configure-aws-credentials@v4` configures AWS credentials from GitHub secrets.
+4. `azure/setup-kubectl@v1` installs `kubectl`.
+5. `imranismail/setup-kustomize@v1` installs `kustomize`.
+6. The workflow runs `aws eks update-kubeconfig --region us-east-1 --name my-kustomize-cluster`.
+7. It verifies cluster access with `kubectl cluster-info` and `kubectl get nodes`.
+8. It deploys the `dev` overlay with `kubectl apply -k overlay/dev`.
+
+### Required GitHub secrets
+To run this workflow, add these secrets to the repository:
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+
+### Why this matters
+- Provides automated deployment validation on every change to `main`
+- Ensures the Kustomize path is executable in CI
+- Demonstrates AWS EKS integration with GitHub Actions
+- Helps catch deployment issues early
+
+---
+
 ## 🧪 What this repository demonstrates
 
 - Kustomize config generators for `ConfigMap` and `Secret`
