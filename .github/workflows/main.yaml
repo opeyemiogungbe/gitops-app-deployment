@@ -99,9 +99,9 @@ jobs:
 
       - name: Deploy Kustomize
         run: |
-          mkdir -p /tmp/overlay
-          cp -R overlay/${{ steps.determine-env.outputs.ENVIRONMENT }} /tmp/overlay
-          cd /tmp/overlay/${{ steps.determine-env.outputs.ENVIRONMENT }}
+          mkdir -p /tmp/deploy
+          cp -R base overlay /tmp/deploy
+          cd /tmp/deploy/overlay/${{ steps.determine-env.outputs.ENVIRONMENT }}
           kustomize edit set image myapp=${{ env.IMAGE_URI }}
           kubectl apply -k .
 
