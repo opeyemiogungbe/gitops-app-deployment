@@ -41,7 +41,8 @@ It includes:
 - Environment-specific replica counts and labels
 
 ### Workflow trigger
-- Runs on `push` to the `main` branch.
+- Runs on `push` to the `dev`, `staging`, and `main` branches.
+- Supports manual deployment through `workflow_dispatch` with `dev`, `staging`, or `prod` input.
 
 ### What the workflow does
 1. `actions/checkout@v4` checks out the repository.
@@ -70,6 +71,32 @@ We can see our action run successfully... NOTE: This Required GitHub secrets. to
 - Ensures the Kustomize path is executable in CI
 - Demonstrates AWS EKS integration with GitHub Actions
 - Helps catch deployment issues early
+
+### Local web application
+This repository now includes a simple Node.js web application in the `app/` folder.
+
+To run it locally:
+```bash
+npm install
+npm start
+```
+
+To build the Docker image locally:
+```bash
+docker build -t myapp:latest .
+```
+
+To run the container locally:
+```bash
+docker run -p 80:80 myapp:latest
+```
+
+The application reads environment variables from the overlay patches and displays the current environment and log level in the browser.
+
+### CI/CD packaging for dev
+The GitHub Actions workflow now builds and pushes a Docker image to GitHub Container Registry and then deploys the `dev` overlay when the pipeline runs on the `dev` branch.
+
+The workflow creates an image tag from the current commit SHA and uses that exact image when deploying.
 
 ### Base configuration
 

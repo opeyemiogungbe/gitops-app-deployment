@@ -1,11 +1,33 @@
-name: Deploy with kustomize
+name: Build and deploy with kustomize
 on:
   push:
     branches:
+      - dev
+      - staging
       - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment for deployment'
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
 permissions:
   id-token: write
   contents: read
+  packages: write
+
+env:
+  AWS_REGION: us-east-1
+  EKS_CLUSTER: my-kustomize-cluster
+  IMAGE_REGISTRY: ghcr.io
+  IMAGE_REPOSITORY: ${{ github.repository_owner }}/kustomize-capstone
+  IMAGE_URI: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}:${{ github.sha }}
 
 jobs:
   deploy:
@@ -27,7 +49,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1   
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Set up Kubectl
         uses: azure/setup-kubectl@v1
@@ -35,11 +57,39 @@ jobs:
       - name: Setup kustomize
         uses: imranismail/setup-kustomize@v1
 
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v5
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE_URI }}
+
+      - name: Determine deployment environment
+        id: determine-env
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "ENVIRONMENT=${{ github.event.inputs.environment }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            echo "ENVIRONMENT=prod" >> "$GITHUB_OUTPUT"
+          elif [[ "${GITHUB_REF}" == "refs/heads/staging" ]]; then
+            echo "ENVIRONMENT=staging" >> "$GITHUB_OUTPUT"
+          else
+            echo "ENVIRONMENT=dev" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Configure kubectl
         run: |
           aws eks update-kubeconfig \
-          --region us-east-1 \
-          --name my-kustomize-cluster
+          --region ${{ env.AWS_REGION }} \
+          --name ${{ env.EKS_CLUSTER }}
 
       - name: Verify Cluster Access
         run: |
@@ -48,5 +98,9 @@ jobs:
 
       - name: Deploy Kustomize
         run: |
-          kubectl apply -k overlay/dev
+          mkdir -p /tmp/overlay
+          cp -R overlay/${{ steps.determine-env.outputs.ENVIRONMENT }} /tmp/overlay
+          cd /tmp/overlay/${{ steps.determine-env.outputs.ENVIRONMENT }}
+          kustomize edit set image myapp=${{ env.IMAGE_URI }}
+          kubectl apply -k .
 
