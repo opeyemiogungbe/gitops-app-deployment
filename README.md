@@ -72,6 +72,7 @@ kustomize-capstone/
 ├── Dockerfile                      # Docker image definition
 └── package.json                    # Node.js dependencies
 ```
+![Screenshot-2026-06-12-120122.png](https://i.postimg.cc/KYVGjt0t/Screenshot-2026-06-12-120122.png)
 
 ### Explanation of Key Directories
 
@@ -644,6 +645,8 @@ This project uses **GitHub Actions** to automate building and deploying your app
    AWS_SECRET_ACCESS_KEY: <your AWS secret key>
    ```
 
+![Screenshot-2026-06-11-071144.png](https://i.postimg.cc/8cWdYmYJ/Screenshot-2026-06-11-071144.png)
+
 3. **Optional: Add other secrets**
    ```
    DOCKER_USERNAME: <Docker Hub username>
@@ -692,55 +695,6 @@ on:
 
 ---
 
-## Deployment Instructions
-
-### Local Testing (Before CI/CD)
-
-#### 1. Preview what Kustomize will generate
-
-```bash
-# See what dev environment will look like
-kubectl kustomize overlay/dev
-
-# See staging environment
-kubectl kustomize overlay/staging
-
-# See production environment
-kubectl kustomize overlay/prod
-```
-
-#### 2. Test locally with Docker
-
-```bash
-# Build image
-docker build -t myapp:latest .
-
-# Run with dev environment variables
-docker run -p 80:80 \
-  -e APP_ENV=development \
-  -e LOG_LEVEL=debug \
-  myapp:latest
-
-# Visit http://localhost
-```
-
-#### 3. Deploy to a local Kubernetes cluster (Minikube)
-
-```bash
-# Start Minikube
-minikube start
-
-# Apply dev overlay
-kubectl apply -k overlay/dev
-
-# Check deployment
-kubectl get deployments
-kubectl get pods
-
-# View logs
-kubectl logs -l app=my-app
-```
-
 ### Cloud Deployment with CI/CD
 
 #### Step 1: Initialize Git Repository
@@ -769,19 +723,23 @@ git push origin dev
    - ✅ Push to GHCR
    - ✅ Deploy to dev cluster
 
+![Screenshot-2026-06-12-105112.png](https://i.postimg.cc/rsfwN7qH/Screenshot-2026-06-12-105112.png)
+
 #### Step 3: Verify Deployment
 
 ```bash
 # Check pods in your EKS cluster
-kubectl get pods -l env=development
+kubectl describe deployment dev-my-app
 
-# View application logs
-kubectl logs -l env=development --tail=50
+![Screenshot-2026-06-12-105745.png](https://i.postimg.cc/mrkJPqnQ/Screenshot-2026-06-12-105745.png)
 
 # Access the service
 kubectl port-forward svc/dev-my-app 8080:80
 # Visit http://localhost:8080
 ```
+![Screenshot-2026-06-12-110139.png](https://i.postimg.cc/CLMNM8Xn/Screenshot-2026-06-12-110139.png)
+
+![Screenshot-2026-06-12-110218.png](https://i.postimg.cc/g2X3rHD0/Screenshot-2026-06-12-110218.png)
 
 #### Step 4: Promote to Staging
 
@@ -794,6 +752,9 @@ git push origin staging
 
 # GitHub Actions automatically deploys to staging overlay!
 ```
+![Screenshot-2026-06-12-113221.png](https://i.postimg.cc/d3gtfrT2/Screenshot-2026-06-12-113221.png)
+
+![Screenshot-2026-06-12-114851.png](https://i.postimg.cc/Sj0kd4Bj/Screenshot-2026-06-12-114851.png)
 
 #### Step 5: Promote to Production
 
@@ -806,23 +767,6 @@ git push origin main
 
 # GitHub Actions automatically deploys to prod overlay!
 ```
-
-### Manual Deployment (Without CI/CD)
-
-If you want to deploy manually:
-
-```bash
-# Deploy dev overlay
-kubectl apply -k overlay/dev
-
-# Deploy staging overlay
-kubectl apply -k overlay/staging
-
-# Deploy prod overlay
-kubectl apply -k overlay/prod
-```
-
----
 
 ## Advanced Usage
 
