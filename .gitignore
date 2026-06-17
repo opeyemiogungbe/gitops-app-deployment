@@ -30,6 +30,10 @@ build/
 charts/
 *.tgz
 
+# Python bytecode and cache files
+__pycache__/
+*.py[cod]
+
 # Mac / Linux temp
 .session
 
