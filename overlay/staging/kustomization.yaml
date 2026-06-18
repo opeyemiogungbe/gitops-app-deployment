@@ -3,6 +3,7 @@ resources:
 patches:
   - path: replica_count.yaml
   - path: deployment_patch.yaml
+  - path: service_patch.yaml
 labels:
   - pairs:
       env: staging  # Label applied to every resource

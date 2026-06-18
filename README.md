@@ -1,50 +1,56 @@
-# Introduction to GitOps and ArgoCD Using AWS
+# Gitops application deployment
 
 ## Project Overview
 
-This project demonstrates a practical GitOps workflow for deploying a containerized Node.js application to Kubernetes on AWS using Argo CD, Kustomize, GitHub, and GitHub Actions.
+This project demonstrates a GitOps-based application deployment workflow using Kubernetes, Kustomize, GitHub Actions, GitHub Container Registry, and Argo CD.
 
-The goal is simple: Git becomes the source of truth. Instead of manually applying Kubernetes manifests from a laptop or letting a CI pipeline directly run `kubectl apply`, Argo CD continuously watches this repository and keeps the Kubernetes cluster aligned with the desired state stored in Git.
+The main idea is simple: Git is the source of truth. Instead of manually deploying Kubernetes resources with repeated `kubectl apply` commands, the desired state of the application is stored as YAML in this repository. Argo CD watches the repository, compares the live cluster with the Git state, and automatically reconciles the cluster when changes are pushed.
 
-In this setup:
+In this updated version of the project, Argo CD itself is configured declaratively through YAML manifests. That means the Argo CD Applications for development, staging, and production are also stored in Git.
 
-- Kubernetes manifests live in this repository.
-- Kustomize manages different environments: `dev`, `staging`, and `prod`.
-- GitHub Actions builds and pushes container images to GitHub Container Registry.
-- Argo CD watches the Git repository and deploys the correct overlay into the AWS EKS cluster.
-
-This creates a clean separation of responsibility:
+The result is a cleaner deployment workflow:
 
 ```text
-GitHub Actions -> build and publish images
-Argo CD        -> deploy and sync Kubernetes manifests
-Git            -> source of truth
-AWS EKS        -> runtime platform
+Developer pushes code or manifest changes
+        |
+        v
+GitHub Actions builds and publishes the container image
+        |
+        v
+Argo CD detects Git changes
+        |
+        v
+Argo CD syncs the correct Kustomize overlay to Kubernetes
 ```
 
-The result is a deployment process that is repeatable, auditable, and easier to reason about. Every environment change is visible in Git history, and Argo CD gives real-time visibility into what is running in the cluster.
+This keeps build and deployment responsibilities separate. GitHub Actions builds the image. Argo CD deploys the Kubernetes manifests.
 
-## What This Project Builds
+## What This Project Deploys
 
-This repository contains a small Node.js web application and Kubernetes manifests for deploying it across three environments:
+The project deploys a simple Node.js application to Kubernetes across three environments:
 
-| Environment | Git Branch | Kustomize Path | Image Tag |
-|---|---|---|---|
-| Development | `dev` | `overlay/dev` | `ghcr.io/opeyemiogungbe/kustomize-capstone:dev` |
-| Staging | `staging` | `overlay/staging` | `ghcr.io/opeyemiogungbe/kustomize-capstone:staging` |
-| Production | `main` | `overlay/prod` | `ghcr.io/opeyemiogungbe/kustomize-capstone:prod` |
+| Environment | Git Branch | Kustomize Path | Argo CD App | Namespace |
+|---|---|---|---|---|
+| Development | `dev` | `overlay/dev` | `kustomize-dev` | `dev` |
+| Staging | `staging` | `overlay/staging` | `kustomize-staging` | `staging` |
+| Production | `main` | `overlay/prod` | `kustomize-prod` | `prod` |
 
-Each environment inherits a shared base configuration and then applies environment-specific patches for replicas, image tags, labels, and runtime variables.
+Each environment inherits the shared Kubernetes configuration from `base/` and applies its own environment-specific patches through Kustomize.
 
-## Project Structure
+## Repository Structure
 
 ```text
-kustomize-capstone/
+gitops-app-deployment/
 |-- .github/
 |   `-- workflows/
 |       `-- main.yaml
 |-- app/
 |   `-- index.js
+|-- argocd/
+|   |-- application-dev.yaml
+|   |-- application-staging.yaml
+|   |-- application-prod.yaml
+|   `-- kustomization.yaml
 |-- base/
 |   |-- deployment.yaml
 |   |-- service.yaml
@@ -52,223 +58,230 @@ kustomize-capstone/
 |-- overlay/
 |   |-- dev/
 |   |   |-- deployment_patch.yaml
-|   |   |-- kustomization.yaml
-|   |   `-- replica_count.yaml
+|   |   |-- replica_count.yaml
+|   |   `-- kustomization.yaml
 |   |-- staging/
 |   |   |-- deployment_patch.yaml
-|   |   |-- kustomization.yaml
 |   |   |-- replica_count.yaml
-|   |   `-- service_patch.yaml
+|   |   |-- service_patch.yaml
+|   |   `-- kustomization.yaml
 |   `-- prod/
 |       |-- deployment_patch.yaml
-|       |-- kustomization.yaml
-|       `-- replica_count.yaml
+|       |-- replica_count.yaml
+|       `-- kustomization.yaml
 |-- Dockerfile
 |-- package.json
 `-- README.md
 ```
 
-### Important Directories
+## Key Directories
 
 | Path | Purpose |
 |---|---|
 | `app/` | Node.js application source code |
-| `base/` | Shared Kubernetes Deployment, Service, ConfigMap, and Secret configuration |
-| `overlay/dev` | Development-specific Kustomize customization |
-| `overlay/staging` | Staging-specific Kustomize customization |
-| `overlay/prod` | Production-specific Kustomize customization |
-| `.github/workflows/main.yaml` | Builds and pushes container images for Argo CD to deploy |
+| `base/` | Shared Kubernetes Deployment, Service, ConfigMap, and Secret definitions |
+| `overlay/dev` | Development-specific Kustomize configuration |
+| `overlay/staging` | Staging-specific Kustomize configuration |
+| `overlay/prod` | Production-specific Kustomize configuration |
+| `argocd/` | Declarative Argo CD Application manifests |
+| `.github/workflows/` | GitHub Actions workflow for building and pushing images |
 
-## GitOps in Plain English
-
-GitOps is a deployment model where Git is treated as the control center for infrastructure and application delivery.
-
-Instead of saying, "Run this command on the cluster," you say, "This is what the cluster should look like," then commit that desired state to Git.
-
-Argo CD then compares:
+## Architecture
 
 ```text
-Desired state: Kubernetes manifests in Git
-Live state:    Resources currently running in the cluster
+GitHub Repository
+  |-- Application source code
+  |-- Kubernetes base manifests
+  |-- Kustomize overlays
+  `-- Argo CD Application manifests
+
+GitHub Actions
+  `-- Builds and pushes images to GitHub Container Registry
+
+Argo CD
+  `-- Watches Git branches and syncs Kubernetes resources
+
+Kubernetes Cluster
+  `-- Runs the deployed application workloads
 ```
 
-If the live cluster drifts away from Git, Argo CD detects it and can sync the cluster back to the desired state.
+Argo CD does not build Docker images. It only deploys the Kubernetes desired state from Git.
 
-This gives you:
+## Declarative Argo CD Applications
 
-- Version-controlled deployments
-- Easier rollback through Git history
-- Better visibility into cluster drift
-- Consistent deployment across environments
-- Fewer manual `kubectl` operations
+The Argo CD Applications are defined in the `argocd/` directory:
 
-## Argo CD Core Components and Architecture
+```text
+argocd/application-dev.yaml
+argocd/application-staging.yaml
+argocd/application-prod.yaml
+```
+![Screenshot-2026-06-18-032019.png](https://i.postimg.cc/Dfbnr4hS/Screenshot-2026-06-18-032019.png)
 
-Argo CD runs inside the Kubernetes cluster and continuously reconciles Git state with cluster state.
+![Screenshot-2026-06-18-032043.png](https://i.postimg.cc/fTNnYH5j/Screenshot-2026-06-18-032043.png)
 
-### Main Components
+![Screenshot-2026-06-18-032104.png](https://i.postimg.cc/L6XkQSy1/Screenshot-2026-06-18-032104.png)
 
-| Component | Role |
+Each file tells Argo CD:
+
+- Which Git repository to watch
+- Which branch to track
+- Which Kustomize overlay path to render
+- Which Kubernetes namespace to deploy into
+- Whether automated sync, pruning, and self-healing should be enabled
+
+
+## Bootstrapping Argo CD
+
+Before Argo CD can deploy from the repository, the Argo CD Application objects must exist in the cluster.
+
+Apply them one time:
+
+```bash
+kubectl apply -f argocd/application-dev.yaml
+kubectl apply -f argocd/application-staging.yaml
+kubectl apply -f argocd/application-prod.yaml
+```
+![Screenshot-2026-06-18-035311.png](https://i.postimg.cc/J7gtmWrx/Screenshot-2026-06-18-035311.png)
+
+Or apply all three together using the `argocd/kustomization.yaml` bundle:
+
+```bash
+kubectl apply -k argocd
+```
+
+After this bootstrap step, Argo CD starts managing the three environments automatically.
+
+## Syncing Behavior
+
+Once the Argo CD Applications are registered, Argo CD continuously compares Git state with the live Kubernetes cluster.
+
+Each application watches its own branch and path:
+
+```text
+kustomize-dev      -> dev branch      -> overlay/dev
+kustomize-staging  -> staging branch  -> overlay/staging
+kustomize-prod     -> main branch     -> overlay/prod
+```
+
+If a change is pushed to `dev`, only the development application's desired state changes. Staging and production may still be checked by Argo CD, but they will not receive the dev change because they track different branches.
+
+The sync policy enables:
+
+| Setting | Meaning |
 |---|---|
-| `argocd-server` | API server and web UI used to manage Argo CD applications |
-| `argocd-repo-server` | Clones Git repositories and generates manifests using tools like Kustomize or Helm |
-| `argocd-application-controller` | Compares desired state from Git with live Kubernetes resources and performs syncs |
-| `argocd-dex-server` | Handles SSO integrations when configured |
-| `argocd-redis` | Caches data used by Argo CD components |
-| `argocd-notifications-controller` | Sends deployment or sync notifications when configured |
-| `argocd-applicationset-controller` | Generates multiple Argo CD Applications from templates when using ApplicationSets |
+| `automated` | Argo CD can sync changes without manual approval |
+| `prune: true` | Resources removed from Git are removed from the cluster |
+| `selfHeal: true` | Manual cluster drift is corrected back to Git state |
+| `CreateNamespace=true` | Argo CD can create the target namespace automatically |
 
-### Architecture Flow
+## Deployment Flow
+
+The normal workflow is:
+
+1. Make a code or manifest change.
+2. Commit the change to the correct environment branch.
+3. Push the branch to GitHub.
+4. GitHub Actions builds and pushes the container image.
+5. Argo CD detects the Git change.
+6. Argo CD renders the Kustomize overlay.
+7. Argo CD syncs the resources into Kubernetes.
+
+Example:
+
+```bash
+git checkout dev
+git add .
+git commit -m "Update development deployment"
+git push origin dev
+```
+
+Argo CD then syncs `kustomize-dev`.
+
+![Screenshot-2026-06-18-043232.png](https://i.postimg.cc/Zq7vdvSf/Screenshot-2026-06-18-043232.png)
+
+Note: the argocd ui above show all our deployment 
+
+## GitHub Actions Role
+
+GitHub Actions is responsible for building the Docker image and pushing it to GitHub Container Registry.
+
+It does not deploy directly to Kubernetes.
+
+This is intentional:
 
 ```text
-Developer pushes code/manifests to GitHub
-            |
-            v
-GitHub Actions builds image and pushes to GHCR
-            |
-            v
-Kubernetes manifests remain in Git as desired state
-            |
-            v
-Argo CD watches the repo branch and overlay path
-            |
-            v
-Argo CD renders Kustomize manifests
-            |
-            v
-Argo CD syncs resources into AWS EKS
+GitHub Actions -> build artifact
+Argo CD        -> deploy artifact
+Git            -> source of truth
 ```
 
-Argo CD does not need GitHub Actions to deploy. GitHub Actions only prepares the image. Argo CD owns the Kubernetes deployment step.
+If GitHub Actions fails to push an image, Argo CD can still sync the YAML. However, the Kubernetes pods may continue running an older image or fail with `ImagePullBackOff` if the referenced image tag does not exist.
 
-## Prerequisites
+## Health Status
 
-You need:
+Argo CD reports both sync status and health status.
 
-- AWS account
-- EKS cluster
-- `kubectl`
-- AWS CLI
-- GitHub repository
-- Docker or GitHub Actions for image builds
-- Argo CD installed in the EKS cluster
+| Status | Meaning |
+|---|---|
+| `Synced` | The live Kubernetes resources match the manifests in Git |
+| `OutOfSync` | The cluster differs from the desired state in Git |
+| `Healthy` | Kubernetes reports that the application resources are running correctly |
+| `Progressing` | Resources are still being created or updated |
+| `Degraded` | One or more resources are failing |
 
-Confirm access to your EKS cluster:
+An application can be `Synced` but not `Healthy`. For example, the YAML may apply successfully, but a pod can still fail if the image cannot be pulled.
+
+Useful checks:
 
 ```bash
-kubectl get nodes
+kubectl get applications -n argocd
+kubectl describe application kustomize-dev -n argocd
+kubectl get pods -n dev
+kubectl get svc -n dev
 ```
+![Screenshot-2026-06-18-035728.png](https://i.postimg.cc/JhDMpsXT/Screenshot-2026-06-18-035728.png)
 
-## Installing Argo CD on AWS EKS
+## Rollback Strategy
 
-Create the Argo CD namespace:
+The recommended GitOps rollback method is to revert the bad Git commit and push the revert.
+
+Example:
 
 ```bash
-kubectl create namespace argocd
+git checkout dev
+git revert <bad-commit-sha>
+git push origin dev
 ```
 
-Install Argo CD:
+Argo CD sees the new Git state and syncs the cluster back to the reverted version.
+
+This keeps Git as the source of truth and preserves a clean audit trail.
+
+You can also roll back from the Argo CD UI or CLI:
 
 ```bash
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+argocd app history kustomize-dev
+argocd app rollback kustomize-dev <history-id>
 ```
 
-Check that the Argo CD pods are running:
+However, if automated sync is enabled and Git still points to the bad version, Argo CD may eventually sync back to that Git state. For this reason, Git-based rollback is usually the safest and cleanest approach.
 
-```bash
-kubectl get pods -n argocd
-```
+## Application Deletion
 
-You should see components such as:
+When deleting an Argo CD Application, the deletion propagation policy controls what happens to the resources it manages.
 
-```text
-argocd-application-controller
-argocd-server
-argocd-repo-server
-argocd-redis
-argocd-dex-server
-```
-![Screenshot-2026-06-13-054638.png](https://i.postimg.cc/RF4GPSTM/Screenshot-2026-06-13-054638.png)
+| Policy | Behavior |
+|---|---|
+| `Foreground` | Deletes child resources first, then removes the Application |
+| `Background` | Deletes the Application and lets Kubernetes clean up child resources afterward |
+| `Non-cascading` | Deletes only the Argo CD Application; workloads remain running |
 
-![Screenshot-2026-06-13-055108.png](https://i.postimg.cc/3rL9BH0w/Screenshot-2026-06-13-055108.png)
+For normal cleanup, `Foreground` is a good default. Use `Non-cascading` only when you want Argo CD to stop managing the app but leave the Kubernetes resources in place.
 
-## Accessing the Argo CD UI
+## Useful Commands
 
-For local access, port-forward the Argo CD server:
-
-```bash
-kubectl port-forward svc/argocd-server -n argocd 8080:443
-```
-
-Open:
-
-```text
-https://localhost:8080
-```
-
-Get the initial admin password:
-
-```bash
-kubectl -n argocd get secret argocd-initial-admin-secret \
-  -o jsonpath="{.data.password}" | base64 -d
-```
-
-Login with:
-
-```text
-Username: admin
-Password: <initial password>
-```
-
-After logging in, change the admin password for security.
-
-![Screenshot-2026-06-13-060426.png](https://i.postimg.cc/g0PKJzQf/Screenshot-2026-06-13-060426.png)
-
-## Configuring Argo CD for This Repository
-
-This project is best represented as three Argo CD Applications:
-
-| Argo CD App | Branch | Path | Purpose |
-|---|---|---|---|
-| `kustomize-dev` | `dev` | `overlay/dev` | Development deployment |
-| `kustomize-staging` | `staging` | `overlay/staging` | Staging deployment |
-| `kustomize-prod` | `main` | `overlay/prod` | Production deployment |
-
-Application names must be lowercase because Kubernetes resource names follow RFC 1123 naming rules.
-
-## Deploying Kubernetes Manifests with Argo CD
-
-Once the Argo CD applications are created, the deployment flow becomes:
-
-![Screenshot-2026-06-17-054937.png](https://i.postimg.cc/rFVsqvfN/Screenshot-2026-06-17-054937.png)
-
-![Screenshot-2026-06-17-054959.png](https://i.postimg.cc/W1t4k0L8/Screenshot-2026-06-17-054959.png)
-
-
-
-Repeat the same pattern for staging and production:
-
-```text
-kustomize-staging -> targetRevision: staging -> path: overlay/staging
-```
-![Screenshot-2026-06-17-061313.png](https://i.postimg.cc/VsRsZKzt/Screenshot-2026-06-17-061313.png)
-
-1. Make a change in the correct branch.
-2. Push the branch to GitHub.
-3. GitHub Actions builds and pushes the container image.
-4. Argo CD detects the Git state for the configured branch and path.
-5. Argo CD renders the Kustomize overlay.
-6. Argo CD applies the Kubernetes resources to EKS.
-
-E.g Changing cluster ip to load balancer to test if Argocd picks it up and allow us to access our node.js app on browser. 
-
-![Screenshot-2026-06-17-064350.png](https://i.postimg.cc/6q5hVMfY/Screenshot-2026-06-17-064350.png)
-
-![Screenshot-2026-06-17-062609.png](https://i.postimg.cc/sXzmxjQS/Screenshot-2026-06-17-062609.png)
-
-![Screenshot-2026-06-17-064724.png](https://i.postimg.cc/bY3gYjzq/Screenshot-2026-06-17-064724.png)
-
-You can manually preview any overlay before Argo CD deploys it:
+Render Kustomize overlays locally:
 
 ```bash
 kubectl kustomize overlay/dev
@@ -276,182 +289,78 @@ kubectl kustomize overlay/staging
 kubectl kustomize overlay/prod
 ```
 
-## GitHub Actions Role
-
-The workflow in `.github/workflows/main.yaml` does not deploy to Kubernetes. That is intentional.
-
-It only:
-
-- Builds the Docker image
-- Logs in to GitHub Container Registry
-- Pushes a commit-SHA image tag
-- Pushes an environment image tag: `dev`, `staging`, or `prod`
-
-This prevents GitHub Actions and Argo CD from fighting over the same Kubernetes resources.
-
-Correct responsibility split:
-
-```text
-GitHub Actions: build artifact
-Argo CD: deploy artifact
-```
-
-## Kustomize Environment Strategy
-
-The `base/` directory contains shared Kubernetes configuration:
-
-- Deployment
-- Service
-- ConfigMaps
-- Secrets
-
-Each overlay customizes the base:
-
-- `overlay/dev` sets development values.
-- `overlay/staging` sets staging values.
-- `overlay/prod` sets production values.
-
-The overlays use current Kustomize syntax:
-
-```yaml
-patches:
-  - path: replica_count.yaml
-  - path: deployment_patch.yaml
-
-labels:
-  - pairs:
-      env: development
-    includeSelectors: true
-```
-
-This keeps the project compatible with newer Kustomize versions used by Argo CD.
-
-## Branching Model
-
-Each branch represents an environment:
-
-```text
-dev      -> development
-staging  -> staging
-main     -> production
-```
-
-Pushing to one branch does not update the others automatically. If a shared fix is made on `main`, merge it into the other branches:
+Register Argo CD Applications:
 
 ```bash
-git checkout dev
-git merge main
-git push origin dev
-
-git checkout staging
-git merge main
-git push origin staging
+kubectl apply -k argocd
 ```
 
-This matters because each Argo CD Application reads from its configured branch.
-
-## Useful Argo CD Commands
-
-Check Argo CD pods:
+Check Argo CD Applications:
 
 ```bash
-kubectl get pods -n argocd
+kubectl get applications -n argocd
+kubectl describe application kustomize-dev -n argocd
+kubectl describe application kustomize-staging -n argocd
+kubectl describe application kustomize-prod -n argocd
 ```
 
-List Argo CD applications:
+Check workloads:
+
+```bash
+kubectl get pods -n dev
+kubectl get pods -n staging
+kubectl get pods -n prod
+```
+
+## Troubleshooting
+
+### Argo CD Did Not Deploy After a Push
+
+Confirm the Application exists:
 
 ```bash
 kubectl get applications -n argocd
 ```
 
-Inspect an application:
+Confirm the app is watching the correct branch and path:
 
 ```bash
 kubectl describe application kustomize-dev -n argocd
 ```
 
-Refresh or sync from the UI, or use the Argo CD CLI if installed:
+### GitHub Actions Failed With `write_package`
+
+This means GitHub Actions could not push the image to GitHub Container Registry.
+
+Check:
+
+- Repository workflow permissions allow read and write access.
+- The workflow has `packages: write`.
+- The GHCR package allows this repository to publish images.
+
+### Application Is Synced But Pods Are Failing
+
+Check pod events:
 
 ```bash
-argocd app sync kustomize-dev
-argocd app get kustomize-dev
+kubectl describe pod <pod-name> -n dev
 ```
 
-## Troubleshooting
+Common causes include missing images, private image permissions, bad environment variables, or failing application startup.
 
-### Invalid Application Name
+### Staging or Prod Synced Even Without a New Push
 
-Invalid:
-
-```text
-Kustomize-dev
-```
-
-Valid:
-
-```text
-kustomize-dev
-```
-
-Argo CD Applications are Kubernetes resources, so names must be lowercase.
-
-### Kustomize Labels Error
-
-If Argo CD reports:
-
-```text
-json: cannot unmarshal object into Go struct field Kustomization.labels
-```
-
-Use list-form labels:
-
-```yaml
-labels:
-  - pairs:
-      env: development
-    includeSelectors: true
-```
-
-Do not use:
-
-```yaml
-labels:
-  env: development
-```
-
-### GitHub Actions Cannot Find EKS Cluster
-
-If a workflow says:
-
-```text
-No cluster found for name
-```
-
-That means the workflow is trying to configure `kubectl` for an EKS cluster that does not exist in that AWS account or region. In this GitOps design, the workflow should not need EKS access because Argo CD handles deployment.
-
-### ImagePullBackOff
-
-If pods cannot pull images from GHCR:
-
-- Confirm the image exists in GitHub Container Registry.
-- Confirm the image is public, or configure an image pull secret.
-- Confirm the overlay uses the correct image path and tag.
-
-## Security Notes
-
-- Do not commit real secrets into `secretGenerator`.
-- Use External Secrets Operator, AWS Secrets Manager, Sealed Secrets, or another secure secret-management approach for production.
-- Prefer short-lived credentials and IAM roles over long-lived AWS keys.
-- Use Argo CD RBAC for team access control.
-- Review automated sync settings before enabling them in production.
+If the Argo CD Applications were newly created, Argo CD performs an initial reconciliation for all registered apps. This is expected. Each app still tracks its own configured branch.
 
 ## Summary
 
-This project shows a clean GitOps workflow on AWS:
+This project now follows a clean GitOps workflow:
 
-- Git stores the desired Kubernetes state.
-- Kustomize manages environment-specific configuration.
-- GitHub Actions builds and publishes container images.
-- Argo CD deploys and continuously reconciles the EKS cluster.
+- Kubernetes manifests live in Git.
+- Kustomize manages environment differences.
+- Argo CD Applications are declared as YAML.
+- GitHub Actions builds and pushes container images.
+- Argo CD syncs the cluster to match Git.
+- Rollbacks are handled cleanly through Git history.
 
-By separating build from deployment, the project becomes easier to audit, safer to operate, and closer to a real production GitOps workflow.
+With this structure, deployment is repeatable, auditable, and easier to manage across development, staging, and production.
