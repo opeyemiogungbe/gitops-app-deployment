@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/opeyemiogungbe/gitops-argo.git
+    repoURL: https://github.com/opeyemiogungbe/gitops-app-deployment.git
     targetRevision: main
     path: overlay/prod
   destination:
