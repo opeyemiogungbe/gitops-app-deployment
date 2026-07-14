@@ -1,6 +1,9 @@
 resources:
   - deployment.yaml
   - service.yaml
+  - aws-credentials-secret.yaml
+  - secret-store.yaml
+  - external-secret.yaml
 
 configMapGenerator:
 - name: my-configmap  # Name of the ConfigMap
@@ -11,12 +14,6 @@ configMapGenerator:
   literals:
   - app_name=MyKustomizeApp
   - log_level=debug
-# base/kustomization.yaml
-secretGenerator:
-- name: my-secret     # Name of the Secret
-  literals:
-  - username=admin    # Key-value pairs; consider external management for real secrets
-  - password=s3cr3t
 
 generatorOptions:
   disableNameSuffixHash: true
