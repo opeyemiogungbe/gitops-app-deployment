@@ -230,11 +230,7 @@ Kustomize helps avoid duplication by allowing you to define:
 This is especially useful when you have multiple environments such as dev, staging, and prod.
 
 ---
-
-## 7. Helm Workflow in This Project
-
 The project also includes a Helm chart under [helm/my-app](helm/my-app).
-
 ### 7.1 Helm Chart Structure
 
 The chart includes:
@@ -384,6 +380,141 @@ This is the key architecture principle:
 - application code consumes a Kubernetes Secret
 - the Secret can be sourced from any secure back-end
 - Git remains the deployment source of truth
+
+---
+
+**GitOps Security & Access Control**
+
+### Overview
+
+Security in a GitOps workflow is about treating security configuration as code: keep policies, RBAC, and SSO settings in Git, enforce reviews and CI checks, and make deployment and audit reproducible. The sections below summarize best practices and concrete examples for RBAC, OAuth/SSO, audit trails, secrets, and compliance.
+
+### RBAC (Role-Based Access Control)
+
+- **Principle:** grant the least privilege required. Prefer namespace-scoped `Role`/`RoleBinding` and only use `ClusterRole`/`ClusterRoleBinding` when necessary.
+- **Repository location:** keep RBAC manifests under `base` so they are applied consistently (see [base/rbac.yaml](base/rbac.yaml)).
+- **Persona model:** define roles for `admin`, `developer`, and `viewer` and bind them to IdP groups or ServiceAccounts used by automation.
+
+Example RoleBinding (namespace-scoped):
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+        name: developer-binding
+        namespace: my-namespace
+subjects:
+        - kind: Group
+                name: gitops-developers
+roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: Role
+        name: developer-role
+```
+
+### OAuth / Single Sign-On (SSO)
+
+- **Two approaches for Argo CD:**
+        - Operator CR: when running the Argo CD Operator, use an `ArgoCD` CR (for example [base/oauth.yaml](base/oauth.yaml)).
+        - ConfigMap/Secret: when Argo CD is installed directly, configure `argocd-cm` (ConfigMap) and `argocd-secret` (Secret) with OIDC provider information.
+- **Keep secrets out of Git:** place client secrets in `argocd-secret` or an external secret manager (Vault, ExternalSecrets, SOPS).
+
+Minimal ConfigMap + Secret pattern:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+        name: argocd-secret
+        namespace: argocd
+stringData:
+        oidc.clientSecret: "<YOUR_CLIENT_SECRET>"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+        name: argocd-cm
+        namespace: argocd
+data:
+        url: https://argocd.example.com
+        dex.config: |
+                connectors:
+                        - type: oidc
+                                id: google
+                                name: Google
+                                config:
+                                        issuer: https://accounts.google.com
+                                        clientID: <YOUR_CLIENT_ID>
+                                        clientSecret: $oidc.clientSecret
+                                        redirectURI: https://argocd.example.com/auth/callback
+```
+
+After applying those resources, restart the server:
+
+```bash
+kubectl -n argocd rollout restart deployment/argocd-server
+```
+
+### Argo CD Application RBAC (policy)
+
+- Argo CD has an internal RBAC policy configured via the `argocd-rbac-cm` ConfigMap. Keep policy CSV and group mappings in Git and map IdP groups to Argo roles.
+
+Example snippet for `argocd-rbac-cm`:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+        name: argocd-rbac-cm
+        namespace: argocd
+data:
+        policy.csv: |
+                p, role:admin, applications, *, */*, allow
+                p, role:developer, applications, get, */*, allow
+                p, role:viewer, applications, get, */*, allow
+        # group mapping example (use your IdP group names)
+        groups: |
+                - name: gitops-admins
+                        role: role:admin
+                - name: gitops-developers
+                        role: role:developer
+```
+
+### Audit Trail & Compliance
+
+- **Kubernetes audit logs:** enable API server audit logging and ship audit records to a central store for retention and analysis.
+- **Argo CD events & logs:** forward Argo CD logs and events to your central logging and SIEM for detection and compliance reporting.
+- **Git as the audit source:** keep all security changes (RBAC, SSO, policies) in pull requests with enforced reviews — Git history becomes the primary audit trail.
+
+### Secrets & Key Management
+
+- Use a secrets solution (Vault, ExternalSecrets, SealedSecrets, or SOPS+KMS) and avoid committing plaintext secrets to Git.
+- Rotate OAuth client secrets regularly and automate rotation where possible.
+
+### Verification & Useful Commands
+
+- Apply base resources (includes RBAC and OAuth when placed in `base`):
+
+```bash
+kubectl apply -k base
+```
+
+- Inspect Argo CD config and RBAC:
+
+```bash
+kubectl -n argocd get configmap argocd-cm argocd-rbac-cm -o yaml
+kubectl -n argocd get secret argocd-secret -o yaml
+kubectl -n argocd get role,rolebinding,clusterrole,clusterrolebinding
+```
+
+### Practical Recommendations
+
+- Keep shared, reusable configs in `base` and environment differences in overlays.
+- Automate linting, Kustomize rendering, and secret checks in CI to block unsafe PRs.
+- Enforce least privilege via IdP group mappings rather than per-user bindings.
+
+For examples used in this repository, see [base/rbac.yaml](base/rbac.yaml) and [base/oauth.yaml](base/oauth.yaml).
 
 ---
 

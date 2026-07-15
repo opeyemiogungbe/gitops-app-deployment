@@ -4,6 +4,8 @@ resources:
   - aws-credentials-secret.yaml
   - secret-store.yaml
   - external-secret.yaml
+  - rbac.yaml
+  - oauth.yaml
 
 configMapGenerator:
 - name: my-configmap  # Name of the ConfigMap

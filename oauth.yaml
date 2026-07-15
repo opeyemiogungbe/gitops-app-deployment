@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ArgoCD
+metadata:
+  name: argocd
+spec:
+  server:
+    route:
+      hosts:
+        - argocd.example.com
+    tls:
+      insecureEdgeTerminationPolicy: Redirect
+  dex:
+    config:
+      connectors:
+        - type: "oidc"
+          id: "oauth"
+          name: "OAuth"
+          config:
+            issuer: "https://accounts.google.com"
+            clientID: "<YOUR_GOOGLE_CLIENT_ID>"
+            clientSecret: "<YOUR_GOOGLE_CLIENT_SECRET>"
+            redirectURI: "https://argocd.example.com/auth/callback"
