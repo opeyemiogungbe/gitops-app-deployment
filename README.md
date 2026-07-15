@@ -269,6 +269,16 @@ This example shows how Argo CD can point to a Helm chart path and override value
 
 ---
 
+![Screenshot-2026-06-19-044209.png](https://i.postimg.cc/RFDz3Hqy/Screenshot-2026-06-19-044209.png)
+
+![Screenshot-2026-06-19-052202.png](https://i.postimg.cc/Y2vvdNNB/Screenshot-2026-06-19-052202.png)
+
+![Screenshot-2026-06-19-054915.png](https://i.postimg.cc/WpxhCDSn/Screenshot-2026-06-19-054915.png)
+
+![Screenshot-2026-07-08-055551.png](https://i.postimg.cc/YqcC85CH/Screenshot-2026-07-08-055551.png)
+
+![Screenshot-2026-07-08-055723.png](https://i.postimg.cc/MTQ8QGBN/Screenshot-2026-07-08-055723.png)
+
 ## 8. Argo CD Application Manifests
 
 Argo CD applications are defined under [argocd](argocd).
@@ -282,6 +292,13 @@ This repository contains multiple application manifests:
 - [argocd/application-kustomize-dev.yaml](argocd/application-kustomize-dev.yaml)
 - [argocd/application-prod.yaml](argocd/application-prod.yaml)
 - [argocd/application-staging.yaml](argocd/application-staging.yaml)
+
+  ![Screenshot-2026-07-08-055723.png](https://i.postimg.cc/MTQ8QGBN/Screenshot-2026-07-08-055723.png)
+
+  ![Screenshot-2026-07-08-060623.png](https://i.postimg.cc/GtPwXSqN/Screenshot-2026-07-08-060623.png)
+
+  [![Screenshot-2026-07-08-060841.png](https://i.postimg.cc/yNRfh3fj/Screenshot-2026-07-08-060841.png)
+
 
 ### 8.2 What the Application Manifest Does
 
@@ -304,6 +321,7 @@ spec:
       prune: true
       selfHeal: true
 ```
+![Screenshot-2026-07-14-072018.png](https://i.postimg.cc/XvcQrS1J/Screenshot-2026-07-14-072018.png)
 
 This means:
 
@@ -354,6 +372,8 @@ http://localhost:8200
 ```
 
 Use the dev login credentials created during the setup process.
+
+![Screenshot-2026-07-14-060933.png](https://i.postimg.cc/QCPq2XCk/Screenshot-2026-07-14-060933.png)
 
 ### 9.4 AWS Secrets Manager Integration
 
@@ -535,7 +555,6 @@ kubectl apply -f argocd/application-dev.yaml
 kubectl apply -f argocd/application-staging.yaml
 kubectl apply -f argocd/application-prod.yaml
 ```
-
 ### 10.2 Apply the Dev Overlay
 
 To deploy the development environment:
@@ -543,6 +562,7 @@ To deploy the development environment:
 ```bash
 kubectl apply -k overlay/dev
 ```
+[![Screenshot-2026-06-18-035311.png](https://i.postimg.cc/fy0HT36p/Screenshot-2026-06-18-035311.png)
 
 ### 10.3 Apply the Vault Setup
 
@@ -562,6 +582,7 @@ kubectl get svc
 kubectl get deployments
 kubectl get applications -n argocd
 ```
+![Screenshot-2026-07-14-055946.png](https://i.postimg.cc/KvWMDq3J/Screenshot-2026-07-14-055946.png)
 
 ### 10.5 Observe Argo CD
 
