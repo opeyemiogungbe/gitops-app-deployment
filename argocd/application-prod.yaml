@@ -10,7 +10,8 @@ spec:
     targetRevision: main
     path: overlay/prod
   destination:
-    server: https://kubernetes.default.svc
+    # Replace with the name of the prod cluster registered in Argo CD
+    name: prod-cluster
     namespace: prod
   syncPolicy:
     automated:

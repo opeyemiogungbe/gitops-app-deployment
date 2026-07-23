@@ -10,7 +10,8 @@ spec:
     targetRevision: dev
     path: overlay/dev
   destination:
-    server: https://kubernetes.default.svc
+    # Replace with the name of the dev cluster registered in Argo CD
+    name: dev-cluster
     namespace: dev
   syncPolicy:
     automated:

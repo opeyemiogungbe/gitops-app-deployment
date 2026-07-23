@@ -10,7 +10,8 @@ spec:
     targetRevision: staging
     path: overlay/staging
   destination:
-    server: https://kubernetes.default.svc
+    # Replace with the name of the staging cluster registered in Argo CD
+    name: staging-cluster
     namespace: staging
   syncPolicy:
     automated:
