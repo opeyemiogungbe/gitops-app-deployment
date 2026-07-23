@@ -7,7 +7,7 @@ spec:
     spec:
       containers:
         - name: app-container
-          image: ghcr.io/opeyemiogungbe/kustomize-capstone:dev
+          image: ghcr.io/opeyemiogungbe/kustomize-capstone:0a330bf60c0285a62edaf25b0a0d5e193aa0adf6
           env:
             - name: APP_ENV
               value: development
