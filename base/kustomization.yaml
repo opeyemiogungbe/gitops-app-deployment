@@ -1,21 +1,20 @@
 resources:
   - deployment.yaml
   - service.yaml
-  - aws-credentials-secret.yaml
-  - secret-store.yaml
-  - external-secret.yaml
-  - rbac.yaml
-  - oauth.yaml
 
 configMapGenerator:
-- name: my-configmap  # Name of the ConfigMap
+- name: my-configmap
   literals:
-  - key1=value1       # Key-value pairs
+  - key1=value1
   - key2=value2
 - name: my-app-config
   literals:
   - app_name=MyKustomizeApp
   - log_level=debug
 
-generatorOptions:
-  disableNameSuffixHash: true
+secretGenerator:
+# Demo-only credentials. Do not use real credentials or production secrets here.
+- name: my-secret
+  literals:
+  - username=admin
+  - password=changeme
